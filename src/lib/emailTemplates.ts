@@ -1,4 +1,5 @@
-import { Event } from "@prisma/client";
+import {Event} from "@prisma/client";
+import {format} from "date-fns";
 
 export function renderConfirmationEmail(event: Event, userName: string) {
     return `
@@ -28,3 +29,31 @@ export function renderReminderEmail(event: Event, userName: string) {
     </div>
   `;
 }
+
+export function renderWaitlistEmail(
+    eventName: string,
+    checkoutUrl: string,
+    expiresAt: Date
+) {
+    return `
+    <p>Hi there,</p>
+    <p>Your spot on the waitlist for <strong>${eventName}</strong> is now available!</p>
+    <p>Please complete your purchase <strong>before ${format(
+        expiresAt,
+        "yyyy‑MM‑dd HH:mm"
+    )}</strong>. After this time the tickets will be released to the next person in line.</p>
+    <p>
+      <a href="${checkoutUrl}"
+         style="display:inline-block;padding:12px 20px;border-radius:6px;
+                background:#6366f1;color:#fff;text-decoration:none;">
+         Purchase now
+      </a>
+    </p>
+    <p style="font-size:14px;color:#666">
+      Can’t click the button? Copy this link into your browser:<br/>
+      ${checkoutUrl}
+    </p>
+    <p>Cheers,<br/>Ticketing Team</p>
+  `;
+}
+

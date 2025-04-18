@@ -8,20 +8,21 @@ generator client {
 }
 
 model User {
-  id            String         @id @default(uuid())
-  email         String         @unique
+  id            String              @id @default(uuid())
+  email         String              @unique
   name          String
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
   emailVerified Boolean
   image         String?
   sessions      Session[]
   accounts      Account[]
-  role          String         @default("attendee")
+  role          String              @default("attendee")
   Registration  Registration[]
   orders        Order[]
   staffEvents   EventStaff[]
   reservations  TicketReservation[]
+  WaitlistEntry WaitlistEntry[]
 
   @@map("user")
 }
@@ -72,18 +73,19 @@ model Session {
 }
 
 model Event {
-  id           Int            @id @default(autoincrement())
-  name         String
-  type         EventType
-  location     String
-  startTime    DateTime
-  endTime      DateTime
-  ownerid      String
-  Registration Registration[]
-  TicketTiers  TicketTier[]
-  Orders       Order[]
-  staff        EventStaff[]
+  id            Int             @id @default(autoincrement())
+  name          String
+  type          EventType
+  location      String
+  startTime     DateTime
+  endTime       DateTime
+  ownerid       String
+  Registration  Registration[]
+  TicketTiers   TicketTier[]
+  Orders        Order[]
+  staff         EventStaff[]
   discountCodes DiscountCode[]
+  WaitlistEntry WaitlistEntry[]
 }
 
 model EventStaff {
@@ -117,26 +119,27 @@ model Registration {
 }
 
 model TicketTier {
-  id        Int     @id @default(autoincrement())
-  event     Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  eventId   Int
-  price     Int
-  quantity  Int
-  Orders    Order[]
-  reservations TicketReservation[]
+  id            Int                 @id @default(autoincrement())
+  event         Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventId       Int
+  price         Int
+  quantity      Int
+  Orders        Order[]
+  reservations  TicketReservation[]
+  WaitlistEntry WaitlistEntry[]
 }
 
 model TicketReservation {
-  id          Int       @id @default(autoincrement())
+  id           Int               @id @default(autoincrement())
   ticketTierId Int
-  ticketTier  TicketTier @relation(fields: [ticketTierId], references: [id])
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  quantity    Int
-  expiresAt   DateTime
-  status      ReservationStatus @default(PENDING)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  ticketTier   TicketTier        @relation(fields: [ticketTierId], references: [id])
+  userId       String
+  user         User              @relation(fields: [userId], references: [id])
+  quantity     Int
+  expiresAt    DateTime
+  status       ReservationStatus @default(PENDING)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
 }
 
 enum ReservationStatus {
@@ -147,34 +150,56 @@ enum ReservationStatus {
 }
 
 model DiscountCode {
-  id              Int       @id @default(autoincrement())
-  code            String    @unique
-  discountType    String    // PERCENTAGE or FIXED_AMOUNT
-  discountValue   Float     // percentage (0-100) or fixed amount
-  maxUses         Int?      // null means unlimited
-  currentUses     Int       @default(0)
-  startDate       DateTime?
-  endDate         DateTime?
-  eventId         Int
-  event           Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  orders          Order[]
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id            Int       @id @default(autoincrement())
+  code          String    @unique
+  discountType  String // PERCENTAGE or FIXED_AMOUNT
+  discountValue Float // percentage (0-100) or fixed amount
+  maxUses       Int? // null means unlimited
+  currentUses   Int       @default(0)
+  startDate     DateTime?
+  endDate       DateTime?
+  eventId       Int
+  event         Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  orders        Order[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }
 
 model Order {
-  id              Int           @id @default(autoincrement())
-  userId          String
-  user            User          @relation(fields: [userId], references: [id])
-  eventId         Int
-  event           Event         @relation(fields: [eventId], references: [id])
-  ticketTierId    Int
-  ticketTier      TicketTier    @relation(fields: [ticketTierId], references: [id])
-  discountCodeId  Int?
-  discountCode    DiscountCode? @relation(fields: [discountCodeId], references: [id])
-  quantity        Int
-  totalAmount     Float
-  status          String        @default("PENDING") // PENDING, CONFIRMED, CANCELLED
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id             Int           @id @default(autoincrement())
+  userId         String
+  user           User          @relation(fields: [userId], references: [id])
+  eventId        Int
+  event          Event         @relation(fields: [eventId], references: [id])
+  ticketTierId   Int
+  ticketTier     TicketTier    @relation(fields: [ticketTierId], references: [id])
+  discountCodeId Int?
+  discountCode   DiscountCode? @relation(fields: [discountCodeId], references: [id])
+  quantity       Int
+  totalAmount    Float
+  status         String        @default("PENDING") // PENDING, CONFIRMED, CANCELLED
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+enum WaitlistStatus {
+  WAITING
+  NOTIFIED
+  PURCHASED
+  EXPIRED
+}
+
+model WaitlistEntry {
+  id           Int            @id @default(autoincrement())
+  userId       String
+  user         User           @relation(fields: [userId], references: [id])
+  ticketTierId Int
+  ticketTier   TicketTier     @relation(fields: [ticketTierId], references: [id])
+  eventId      Int
+  event        Event          @relation(fields: [eventId], references: [id])
+  quantity     Int
+  status       WaitlistStatus @default(WAITING)
+  notifiedAt   DateTime?
+  expiresAt    DateTime?
+  createdAt    DateTime       @default(now())
 }
