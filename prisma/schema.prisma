@@ -1,0 +1,180 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  name          String
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  emailVerified Boolean
+  image         String?
+  sessions      Session[]
+  accounts      Account[]
+  role          String         @default("attendee")
+  Registration  Registration[]
+  orders        Order[]
+  staffEvents   EventStaff[]
+  reservations  TicketReservation[]
+
+  @@map("user")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime
+  updatedAt             DateTime
+
+  @@map("account")
+}
+
+model Verification {
+  id         String    @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime?
+  updatedAt  DateTime?
+
+  @@map("verification")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime
+  updatedAt DateTime
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@map("session")
+}
+
+model Event {
+  id           Int            @id @default(autoincrement())
+  name         String
+  type         EventType
+  location     String
+  startTime    DateTime
+  endTime      DateTime
+  ownerid      String
+  Registration Registration[]
+  TicketTiers  TicketTier[]
+  Orders       Order[]
+  staff        EventStaff[]
+  discountCodes DiscountCode[]
+}
+
+model EventStaff {
+  id      Int    @id @default(autoincrement())
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventId Int
+  user    User   @relation(fields: [userId], references: [id])
+  userId  String
+  role    String @default("staff")
+
+  @@unique([eventId, userId])
+}
+
+enum EventType {
+  Concert
+  Sports
+  Theatre
+  Comedy
+  Festival
+}
+
+model Registration {
+  id          Int      @id @default(autoincrement())
+  qrCodeToken String   @unique
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  eventId     Int
+  event       Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  checkedIn   Boolean  @default(false)
+  checkInTime DateTime
+}
+
+model TicketTier {
+  id        Int     @id @default(autoincrement())
+  event     Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventId   Int
+  price     Int
+  quantity  Int
+  Orders    Order[]
+  reservations TicketReservation[]
+}
+
+model TicketReservation {
+  id          Int       @id @default(autoincrement())
+  ticketTierId Int
+  ticketTier  TicketTier @relation(fields: [ticketTierId], references: [id])
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  quantity    Int
+  expiresAt   DateTime
+  status      ReservationStatus @default(PENDING)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+enum ReservationStatus {
+  PENDING
+  COMPLETED
+  EXPIRED
+  CANCELLED
+}
+
+model DiscountCode {
+  id              Int       @id @default(autoincrement())
+  code            String    @unique
+  discountType    String    // PERCENTAGE or FIXED_AMOUNT
+  discountValue   Float     // percentage (0-100) or fixed amount
+  maxUses         Int?      // null means unlimited
+  currentUses     Int       @default(0)
+  startDate       DateTime?
+  endDate         DateTime?
+  eventId         Int
+  event           Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  orders          Order[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model Order {
+  id              Int           @id @default(autoincrement())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id])
+  eventId         Int
+  event           Event         @relation(fields: [eventId], references: [id])
+  ticketTierId    Int
+  ticketTier      TicketTier    @relation(fields: [ticketTierId], references: [id])
+  discountCodeId  Int?
+  discountCode    DiscountCode? @relation(fields: [discountCodeId], references: [id])
+  quantity        Int
+  totalAmount     Float
+  status          String        @default("PENDING") // PENDING, CONFIRMED, CANCELLED
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
