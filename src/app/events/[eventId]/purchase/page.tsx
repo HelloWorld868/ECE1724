@@ -13,6 +13,8 @@ export default async function PurchasePage({
     discountCode?: string;
     discountType?: string;
     discountValue?: string;
+    discountCodeId?: string;
+    discountReservationId?: string;
     reservationId?: string;
   };
 }) {
@@ -25,6 +27,8 @@ export default async function PurchasePage({
   const discountCode = searchParamsData.discountCode;
   const discountType = searchParamsData.discountType;
   const discountValue = searchParamsData.discountValue ? parseFloat(searchParamsData.discountValue) : null;
+  const discountCodeId = searchParamsData.discountCodeId ? parseInt(searchParamsData.discountCodeId) : undefined;
+  const discountReservationId = searchParamsData.discountReservationId ? parseInt(searchParamsData.discountReservationId) : undefined;
   const reservationId = searchParamsData.reservationId;
 
   if (!tierId || !quantity || !reservationId) {
@@ -53,7 +57,7 @@ export default async function PurchasePage({
   const basePrice = selectedTier.price * parseInt(quantity);
   let totalPrice = basePrice;
 
-  // 应用折扣
+  // apply discount
   if (discountCode && discountType && discountValue) {
     if (discountType === 'PERCENTAGE') {
       totalPrice = basePrice * (1 - discountValue / 100);
@@ -74,6 +78,8 @@ export default async function PurchasePage({
         discountCode={discountCode}
         discountType={discountType}
         discountValue={discountValue}
+        discountCodeId={discountCodeId}
+        discountReservationId={discountReservationId}
         reservationId={parseInt(reservationId)}
       />
     </div>

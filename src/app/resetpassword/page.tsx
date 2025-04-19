@@ -40,7 +40,7 @@ export default function ResetPasswordPage() {
         placeholder="New password"
         value={newPassword}
         onChange={(e) => setNewPassword(e.target.value)}
-        className="w-full px-4 py-2 border rounded-md"
+        className="w-full px-4 py-2 border rounded-md text-sm"
       />
 
       <Button onClick={handleReset}>Reset Password</Button>

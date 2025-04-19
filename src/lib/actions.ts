@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { EventType } from "@prisma/client";
+import { uploadImageToGCS } from "@/lib/gcs-upload";
 
 export async function createEvent(formData: FormData) {
   const session = await auth.api.getSession({
@@ -21,10 +22,34 @@ export async function createEvent(formData: FormData) {
   const type = formData.get("type");
   const startTime = formData.get("startTime");
   const endTime = formData.get("endTime");
+  const tierNames = formData.getAll("names[]").map((n) => n.toString());
   const prices = formData.getAll("prices[]").map((p) => parseInt(p.toString()));
   const quantities = formData
     .getAll("quantities[]")
     .map((q) => parseInt(q.toString()));
+  
+    // Upload image files
+    const rawImageInputs = formData.getAll("images");
+
+    // Filter out non-Files or files with empty names
+    const imageFiles = rawImageInputs.filter(
+      (file): file is File =>
+        file instanceof File &&
+        typeof file.name === "string" &&
+        file.name.trim() !== "" &&
+        file.size > 0
+    );
+    
+    const imageUrls: string[] = [];
+
+    for (let i = 0; i < imageFiles.length; i++) {
+      const file = imageFiles[i];
+      const filename = `${Date.now()}-${i}-${file.name}`;
+      const url = await uploadImageToGCS(file, filename);
+      imageUrls.push(url);
+    }
+
+    console.log("🧾 Final filtered images:", imageFiles.map(f => f.name));
 
   // 处理折扣码数据
   const discountCodes = [];
@@ -74,10 +99,26 @@ export async function createEvent(formData: FormData) {
     }
   }
 
-  console.log("Final discount codes:", discountCodes);
+  // 显示所有要创建的折扣码详情
+  if (discountCodes.length > 0) {
+    console.log("\n=== DISCOUNT CODES TO BE CREATED ===");
+    console.log(`Total discount codes: ${discountCodes.length}`);
+    
+    discountCodes.forEach((code, index) => {
+      console.log(`\nDiscount code #${index + 1}:`);
+      console.log(`Code: ${code.code}`);
+      console.log(`Type: ${code.discountType}`);
+      console.log(`Value: ${code.discountValue}`);
+      console.log(`Max uses: ${code.maxUses || 'Unlimited'}`);
+      console.log(`Valid from: ${code.startDate ? code.startDate.toLocaleString() : 'No start date'}`);
+      console.log(`Valid until: ${code.endDate ? code.endDate.toLocaleString() : 'No end date'}`);
+    });
+    console.log("===================================\n");
+  }
 
-  console.log(prices);
-  console.log(quantities);
+  console.log("Ticket tier names:", tierNames);
+  console.log("Ticket tier prices:", prices);
+  console.log("Ticket tier quantities:", quantities);
 
   if (!name || (name as string).trim() === "") {
     throw new Error("Event name is required");
@@ -103,11 +144,12 @@ export async function createEvent(formData: FormData) {
     throw new Error("Event end time must be after start time");
   }
 
-  if (prices.length !== quantities.length) {
+  if (prices.length !== quantities.length || prices.length !== tierNames.length) {
     throw new Error("Ticket tier information mismatch");
   }
 
   const ticketTiers = prices.map((price, i) => ({
+    name: tierNames[i],
     price,
     quantity: quantities[i],
   }));
@@ -131,6 +173,7 @@ export async function createEvent(formData: FormData) {
       discountCodes: {
         create: discountCodes,
       },
+      ...(imageUrls.length > 0 && { images: imageUrls }),
     } satisfies Prisma.EventCreateInput,
   });
 

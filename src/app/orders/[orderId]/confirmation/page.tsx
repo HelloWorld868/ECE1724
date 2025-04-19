@@ -2,6 +2,9 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import prisma from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
+import { auth } from "@/lib/auth";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 
 export default async function OrderConfirmationPage({
   params,
@@ -19,6 +22,17 @@ export default async function OrderConfirmationPage({
       discountCode: true,
     },
   });
+
+  // Get current user session
+  const session = await auth.api.getSession({ headers: await headers() });
+  const user = session?.user;
+  const userId = user?.id;
+
+  // If user is not logged in, redirect to login page
+  if (!user) {
+    redirect("/signin");
+  }
+  
 
   if (!order) {
     notFound();
@@ -46,8 +60,7 @@ export default async function OrderConfirmationPage({
               <span className="font-medium">Event:</span> {order.event.name}
             </p>
             <p>
-              <span className="font-medium">Ticket Tier:</span>{" "}
-              {order.ticketTier.id}
+              <span className="font-medium">Ticket Tier:</span>{order.ticketTier.name}
             </p>
             <p>
               <span className="font-medium">Quantity:</span> {order.quantity}
@@ -67,11 +80,15 @@ export default async function OrderConfirmationPage({
 
         <div className="flex justify-center space-x-4">
           <Link href={`/orders/${order.id}/qrcode`}>
-            <Button>Get QR Code</Button>
+            <Button variant="default" size="sm">Get QR Code</Button>
           </Link>
-          <Link href="/events">
-            <Button>Return to Events</Button>
-          </Link>
+          {user && (
+            <Link href={`/user/${userId}`}>
+              <Button variant="default" size="sm">
+                Return to Events
+              </Button>
+            </Link>
+          )}
         </div>
       </div>
     </div>

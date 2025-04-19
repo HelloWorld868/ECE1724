@@ -23,6 +23,8 @@ model User {
   staffEvents   EventStaff[]
   reservations  TicketReservation[]
   WaitlistEntry WaitlistEntry[]
+  transactions  Transaction[]
+  discountReservations DiscountReservation[]
 
   @@map("user")
 }
@@ -79,6 +81,7 @@ model Event {
   location      String
   startTime     DateTime
   endTime       DateTime
+  images        String[]
   ownerid       String
   Registration  Registration[]
   TicketTiers   TicketTier[]
@@ -120,6 +123,7 @@ model Registration {
 
 model TicketTier {
   id            Int                 @id @default(autoincrement())
+  name      String  @default("General Admission")
   event         Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
   eventId       Int
   price         Int
@@ -140,6 +144,7 @@ model TicketReservation {
   status       ReservationStatus @default(PENDING)
   createdAt    DateTime          @default(now())
   updatedAt    DateTime          @updatedAt
+  discountReservation DiscountReservation[]
 }
 
 enum ReservationStatus {
@@ -151,7 +156,7 @@ enum ReservationStatus {
 
 model DiscountCode {
   id            Int       @id @default(autoincrement())
-  code          String    @unique
+  code          String
   discountType  String // PERCENTAGE or FIXED_AMOUNT
   discountValue Float // percentage (0-100) or fixed amount
   maxUses       Int? // null means unlimited
@@ -161,6 +166,23 @@ model DiscountCode {
   eventId       Int
   event         Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
   orders        Order[]
+  reservations    DiscountReservation[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([code, eventId])
+}
+
+model DiscountReservation {
+  id              Int       @id @default(autoincrement())
+  discountCodeId  Int
+  discountCode    DiscountCode @relation(fields: [discountCodeId], references: [id])
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+  ticketReservationId Int?
+  ticketReservation TicketReservation? @relation(fields: [ticketReservationId], references: [id])
+  status          ReservationStatus @default(PENDING)
+  expiresAt       DateTime
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }
@@ -177,9 +199,10 @@ model Order {
   discountCode   DiscountCode? @relation(fields: [discountCodeId], references: [id])
   quantity       Int
   totalAmount    Float
-  status         String        @default("PENDING") // PENDING, CONFIRMED, CANCELLED
+  status         String        @default("PENDING") // Use: PENDING, CONFIRMED, CANCELLED
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
+  transactions   Transaction[]
 }
 
 enum WaitlistStatus {
@@ -190,16 +213,32 @@ enum WaitlistStatus {
 }
 
 model WaitlistEntry {
-  id           Int            @id @default(autoincrement())
-  userId       String
-  user         User           @relation(fields: [userId], references: [id])
-  ticketTierId Int
-  ticketTier   TicketTier     @relation(fields: [ticketTierId], references: [id])
-  eventId      Int
-  event        Event          @relation(fields: [eventId], references: [id])
-  quantity     Int
-  status       WaitlistStatus @default(WAITING)
-  notifiedAt   DateTime?
-  expiresAt    DateTime?
-  createdAt    DateTime       @default(now())
+  id            Int            @id @default(autoincrement())
+  userId        String
+  user          User           @relation(fields: [userId], references: [id])
+  ticketTierId  Int
+  ticketTier    TicketTier     @relation(fields: [ticketTierId], references: [id])
+  eventId       Int
+  event         Event          @relation(fields: [eventId], references: [id])
+  quantity      Int
+  status        WaitlistStatus @default(WAITING)
+  notifiedAt    DateTime?
+  expiresAt     DateTime?
+  createdAt     DateTime       @default(now())
+  reservationId Int?
+}
+
+model Transaction {
+  id            Int      @id @default(autoincrement())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  amount        Decimal  @db.Decimal(10, 2)
+  type          String   // "PAYMENT" or "REFUND"
+  order         Order    @relation(fields: [orderId], references: [id])
+  orderId       Int
+  user          User     @relation(fields: [userId], references: [id])
+  userId        String
+  cardLastFour  String?  // Last four digits of card
+  @@index([orderId])
+  @@index([userId, createdAt])
 }

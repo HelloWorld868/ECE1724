@@ -32,7 +32,7 @@ export default function ForgotPasswordPage() {
         placeholder="Your email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        className="w-full px-4 py-2 border rounded-md"
+        className="w-full px-4 py-2 border rounded-md text-sm"
       />
 
       <Button

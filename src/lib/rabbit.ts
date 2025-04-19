@@ -1,25 +1,50 @@
-import {connect, Channel, ChannelModel} from "amqplib";
+import amqp, {ChannelModel} from "amqplib";
+import "dotenv/config";
+
+const RABBIT_URL = process.env.AMQP_URL || "amqp://localhost";
 
 let connection: ChannelModel;
-let channel: Channel | undefined;
+let channel: amqp.Channel;
 
-export async function getChannel(): Promise<Channel> {
-    if (channel) return channel; // Re‑use the already‑opened channel
+/** Get or create a channel */
+export async function getChannel(): Promise<amqp.Channel> {
+    if (channel) return channel;
 
-    const amqpUrl = process.env.AMQP_URL ?? "amqp://localhost";
-    connection = await connect(amqpUrl);        // ← Promise‑based API
-    channel = await connection.createChannel(); // Guaranteed non‑null
+    connection = await amqp.connect(RABBIT_URL);
+    channel = await connection.createChannel();
     return channel;
 }
 
-
-export async function publishToQueue(
-    queue: string,
-    payload: unknown
-): Promise<void> {
+/** Publish a message (JSON) to a queue */
+export async function publishToQueue(queue: string, payload: object) {
     const ch = await getChannel();
-    await ch.assertQueue(queue, { durable: true });
+    await ch.assertQueue(queue, {durable: true});
     ch.sendToQueue(queue, Buffer.from(JSON.stringify(payload)), {
         persistent: true,
     });
+}
+
+/** Consume a queue and pass parsed message to handler */
+export async function consumeQueue(
+    queue: string,
+    onMessage: (data: any) => Promise<void>
+) {
+    const ch = await getChannel();
+    await ch.assertQueue(queue, {durable: true});
+
+    await ch.consume(
+        queue,
+        async (msg) => {
+            if (!msg) return;
+            try {
+                const data = JSON.parse(msg.content.toString());
+                await onMessage(data);
+                ch.ack(msg);
+            } catch (err) {
+                console.error("❌ Error in consumer:", err);
+                ch.nack(msg, false, false); // discard message
+            }
+        },
+        {noAck: false}
+    );
 }

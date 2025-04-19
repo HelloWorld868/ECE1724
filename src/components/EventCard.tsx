@@ -8,46 +8,37 @@ interface EventCardProps {
 }
 
 export default function EventCard({ event }: EventCardProps) {
+  const imageUrl = event.images?.[0] || "/default-bg.jpg";
+
   return (
-    <div className="bg-white rounded-lg shadow-md p-5 hover:shadow-lg transition-shadow duration-300">
-      <h2 className="text-xl font-semibold text-gray-800 mb-3">{event.name}</h2>
-      
-      <div className="space-y-2.5">
+    <div
+      className="relative bg-gray-900 text-white rounded-lg shadow-md overflow-hidden h-96 flex flex-col justify-between"
+      style={{
+        backgroundImage: `url(${imageUrl})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+      }}
+    >
+      {/* Overlay */}
+      <div className="absolute inset-0 bg-black/40" />
+
+      {/* Content */}
+      <div className="relative z-10 p-5 flex-1 flex flex-col justify-between">
         <div>
-          <h3 className="text-sm font-medium text-gray-600">Type</h3>
-          <p className="text-base text-gray-700">{event.type}</p>
+          <h2 className="text-2xl font-bold mb-2">{event.name}</h2>
+          <div className="text-sm space-y-1 text-gray-200">
+            <p><strong>Type:</strong> {event.type}</p>
+            <p><strong>Location:</strong> {event.location}</p>
+            <p><strong>Start:</strong> {format(new Date(event.startTime), "MMMM d, yyyy h:mm a")}</p>
+            <p><strong>End:</strong> {format(new Date(event.endTime), "MMMM d, yyyy h:mm a")}</p>
+          </div>
         </div>
 
-        <div>
-          <h3 className="text-sm font-medium text-gray-600">Location</h3>
-          <p className="text-base text-gray-700">{event.location}</p>
+        <div className="mt-4">
+          <Button asChild >
+            <Link href={`/events/${event.id}/tickets`}>Get Tickets</Link>
+          </Button>
         </div>
-
-        <div>
-          <h3 className="text-sm font-medium text-gray-600">Start Time</h3>
-          <p className="text-base text-gray-700">
-            {format(new Date(event.startTime), "MMMM d, yyyy 'at' h:mm a")}
-          </p>
-        </div>
-
-        <div>
-          <h3 className="text-sm font-medium text-gray-600">End Time</h3>
-          <p className="text-base text-gray-700">
-            {format(new Date(event.endTime), "MMMM d, yyyy 'at' h:mm a")}
-          </p>
-        </div>
-      </div>
-
-      <div className="mt-4">
-        <Button 
-          asChild
-          className="w-full"
-          size="sm"
-        >
-          <Link href={`/events/${event.id}/tickets`}>
-            Get Tickets
-          </Link>
-        </Button>
       </div>
     </div>
   );

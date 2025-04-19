@@ -9,8 +9,13 @@ export default function CreateEventForm() {
   const [message, setMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
 
   const handleAction = async (formData: FormData) => {
+    imageFiles.forEach((file) => {
+      formData.append("images", file);
+    });
+    
     startTransition(async () => {
       try {
         const result = await createEvent(formData);
@@ -30,7 +35,7 @@ export default function CreateEventForm() {
 
   return (
     <>
-      <EventForm action={handleAction} />
+      <EventForm action={handleAction} setImageFiles={setImageFiles} imageFiles={imageFiles} />
       {message && <p className="text-sm">{message}</p>}
     </>
   );

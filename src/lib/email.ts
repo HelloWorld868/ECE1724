@@ -1,23 +1,19 @@
-import { addMinutes } from "date-fns";
+// src/lib/email.ts
+import {addMinutes} from "date-fns";
 import prisma from "@/lib/prisma";
-import { publishToQueue } from "@/lib/rabbit";
-import { Resend } from "resend";
-import "dotenv/config";
+import {publishToQueue} from "@/lib/rabbit";
+import {Resend} from "resend";
 
-const QUEUE_NAME = "email_queue";
 const FROM_EMAIL = process.env.FROM_EMAIL || "tickets@yourapp.com";
 const APP_URL = process.env.APP_URL || "http://localhost:3000";
-
-async function enqueueEmail(to: string, subject: string, html: string) {
-    await publishToQueue(QUEUE_NAME, { from: FROM_EMAIL, to, subject, html });
-}
+const QUEUE_NAME = "email_queue";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function sendEmail(to: string, subject: string, html: string) {
     try {
         const result = await resend.emails.send({
-            from: "onboarding@resend.dev", // or a verified domain sender
+            from: "noreply@resend.dev", // or a verified domain sender
             to,
             subject,
             html,
@@ -31,43 +27,37 @@ export async function sendEmail(to: string, subject: string, html: string) {
     }
 }
 
-
-/** Send an order‑confirmation email right after purchase is completed. */
-export async function sendOrderConfirmation(orderId: number) {
-    const order = await prisma.order.findUnique({
-        where: { id: orderId },
-        include: { user: true, event: true },
-    });
-    if (!order) return;
-
-    await enqueueEmail(
-        order.user.email,
-        `Order Confirmed – ${order.event.name}`,
-        `<p>Thanks for your purchase! Order #${order.id}</p>
-        <p>Event time: ${order.event.startTime.toLocaleString()}</p>
-        <p>You can view your e‑ticket at
-        <a href="${APP_URL}/orders/${order.id}">My Orders</a>.</p>`
-    );
+/** Low-level: Push an email task to RabbitMQ */
+async function enqueueEmail(to: string, subject: string, html: string) {
+    await publishToQueue(QUEUE_NAME, {from: FROM_EMAIL, to, subject, html});
 }
 
-/** Send a 24‑hour reminder before the event starts (triggered by a cron job). */
-export async function sendEventReminder(eventId: number, userId: string) {
-    const [event, user] = await Promise.all([
-        prisma.event.findUnique({ where: { id: eventId } }),
-        prisma.user.findUnique({ where: { id: userId } }),
+/** Notify user after joining waitlist (includes current position) */
+export async function sendWaitlistJoinConfirmationEmail(
+    userId: string,
+    eventId: number,
+    ticketTierId: number,
+    position: number
+) {
+    const [user, event, tier] = await Promise.all([
+        prisma.user.findUnique({where: {id: userId}}),
+        prisma.event.findUnique({where: {id: eventId}}),
+        prisma.ticketTier.findUnique({where: {id: ticketTierId}}),
     ]);
-    if (!event || !user) return;
+    if (!user || !event || !tier) return;
 
-    await enqueueEmail(
-        user.email,
-        `Reminder – ${event.name} starts soon`,
-        `<p>Your event starts in less than 24 hours.</p>
-     <p><strong>${event.startTime.toLocaleString()}</strong> – ${event.location}</p>
-     <p>Please bring your QR e‑ticket. Enjoy!</p>`
-    );
+    const html = `
+    <h2>🎟 You're on the waitlist!</h2>
+    <p>Hello ${user.name},</p>
+    <p>You joined the waitlist for <strong>${event.name}</strong> (Tier ID: ${tier.id}).</p>
+    <p>Your current position in line: <strong>#${position}</strong></p>
+    <p>We'll email you again when a spot opens up.</p>
+  `;
+
+    await enqueueEmail(user.email, `Waitlist Confirmation – ${event.name}`, html);
 }
 
-/** Notify a user when a waitlist spot becomes available. */
+/** Notify the user when they are selected to purchase (with expiration time) */
 export async function sendWaitlistEmail(
     userId: string,
     reservationId: number,
@@ -75,22 +65,23 @@ export async function sendWaitlistEmail(
     waitMinutes = 30
 ) {
     const [user, event] = await Promise.all([
-        prisma.user.findUnique({ where: { id: userId } }),
-        prisma.event.findUnique({ where: { id: eventId } }),
+        prisma.user.findUnique({where: {id: userId}}),
+        prisma.event.findUnique({where: {id: eventId}}),
     ]);
     if (!user || !event) return;
 
     const expiresAt = addMinutes(new Date(), waitMinutes);
 
-    await enqueueEmail(
-        user.email,
-        `Waitlist Opportunity – ${event.name}`,
-        `<p>Your waitlist spot is available!</p>
-        <p>Please complete checkout before
-        <strong>${expiresAt.toLocaleString()}</strong>.</p>
-        <p><a href="${APP_URL}/checkout/${reservationId}"
-           style="display:inline-block;padding:12px 20px;background:#2563eb;color:#fff;border-radius:6px;text-decoration:none;">
-           Complete Purchase
-        </a></p>`
-    );
+    const html = `
+    <p>Your waitlist spot for <strong>${event.name}</strong> is available!</p>
+    <p>Please complete checkout before <strong>${expiresAt.toLocaleString()}</strong>.</p>
+    <p>
+      <a href="${APP_URL}/checkout/${reservationId}"
+         style="display:inline-block;padding:12px 20px;background:#2563eb;color:#fff;border-radius:6px;text-decoration:none;">
+         Complete Purchase
+      </a>
+    </p>
+  `;
+
+    await enqueueEmail(user.email, `Waitlist Opportunity – ${event.name}`, html);
 }

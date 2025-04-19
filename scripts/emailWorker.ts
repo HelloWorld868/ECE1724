@@ -1,29 +1,42 @@
-import amqp from "amqplib";
-import { sendEmail } from "@/lib/email";
+import { Resend } from "resend";
+import { consumeQueue } from "@/lib/rabbit";
+import "dotenv/config";
 
-async function runWorker() {
-    const conn = await amqp.connect(process.env.AMQP_URL || "amqp://localhost");
-    const channel = await conn.createChannel();
+const resend = new Resend(process.env.RESEND_API_KEY);
+const FROM_EMAIL = process.env.FROM_EMAIL || "noreply@resend.dev";
+const QUEUE_NAME = "email_queue";
 
-    const queue = "email_queue";
-    await channel.assertQueue(queue, { durable: true });
+async function main() {
+    console.log("📨 Email Worker started. Waiting for messages...");
 
-    console.log("Listening on queue:", queue);
-
-    await channel.consume(queue, async (msg) => {
-        if (!msg) return;
-
-        const payload = JSON.parse(msg.content.toString());
-        console.log("Received task:", payload);
+    await consumeQueue(QUEUE_NAME, async ({ to, subject, html }) => {
+        if (!to || !subject || !html) {
+            console.warn("⚠️ Invalid message:", { to, subject });
+            return;
+        }
 
         try {
-            await sendEmail(payload.to, payload.subject, payload.html);
-            channel.ack(msg);
-            console.log("Email sent to:", payload.to);
-        } catch (err) {
-            console.error("Failed to send email to:", payload.to, err);
+            const result = await resend.emails.send({
+                from: FROM_EMAIL,
+                to,
+                subject,
+                html,
+            });
+
+            if (result?.data?.id) {
+                console.log(`✅ Email sent to ${to}, ID: ${result.data.id}`);
+            } else if (result?.error?.message) {
+                console.error(`❌ Failed to send email to ${to}:`, result.error.message);
+            } else {
+                console.error(`❌ Unknown failure sending email to ${to}`);
+            }
+        } catch (err: any) {
+            console.error(`💥 Exception while sending email to ${to}:`, err.message || err);
         }
     });
 }
 
-runWorker();
+main().catch((err) => {
+    console.error("❌ Email worker crashed:", err);
+    process.exit(1);
+});

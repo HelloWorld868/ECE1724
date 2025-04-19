@@ -14,6 +14,8 @@ interface PurchaseClientProps {
   discountCode?: string;
   discountType?: string;
   discountValue?: number | null;
+  discountCodeId?: number;
+  discountReservationId?: number;
   reservationId: number;
 }
 
@@ -33,6 +35,8 @@ export default function PurchaseClient({
   discountCode,
   discountType,
   discountValue,
+  discountCodeId,
+  discountReservationId,
   reservationId
 }: PurchaseClientProps) {
   const router = useRouter();
@@ -40,6 +44,12 @@ export default function PurchaseClient({
   const [isCancelling, setIsCancelling] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [formErrors, setFormErrors] = useState<Partial<PaymentFormData>>({});
+
+  useEffect(() => {
+    console.log("===== Purchase Page Initialized =====");
+    console.log(`Ticket reservation: ${reservationId}, Discount reservation: ${discountReservationId}`);
+    console.log("=====================================");
+  }, []);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -51,26 +61,56 @@ export default function PurchaseClient({
   }, []);
 
   const handleCancel = async () => {
+    console.log("===== Starting Cancellation =====");
+    
     if (!confirm('Are you sure you want to cancel this reservation?')) {
       return;
     }
 
     setIsCancelling(true);
     try {
+      // Release discount code reservation if exists
+      if (discountReservationId) {
+        console.log(`Releasing discount reservation: ${discountReservationId}`);
+        
+        try {
+          const discountResponse = await fetch('/api/discount/release', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ discountReservationId })
+          });
+          
+          if (!discountResponse.ok) {
+            console.warn('Failed to release discount reservation');
+          } else {
+            console.log('Discount reservation released');
+          }
+        } catch (discountError) {
+          console.error('Error releasing discount reservation');
+        }
+      }
+
+      // Cancel ticket reservation
+      console.log(`Cancelling ticket reservation: ${reservationId}`);
       const response = await fetch(`/api/tickets/reserve/${reservationId}`, {
         method: 'DELETE',
       });
 
       if (!response.ok) {
         throw new Error('Failed to cancel reservation');
+      } else {
+        console.log('Ticket reservation cancelled');
       }
 
       router.push(`/events/${event.id}/tickets`);
     } catch (error) {
-      console.error('Error cancelling reservation:', error);
+      console.error('Error during cancellation');
       alert('Failed to cancel reservation. Please try again.');
     } finally {
       setIsCancelling(false);
+      console.log("===== Cancellation Completed =====");
     }
   };
 
@@ -93,7 +133,9 @@ export default function PurchaseClient({
       setIsProcessing(true);
       setFormErrors({});
       
-      // call payment validation api
+      console.log("===== Starting Payment Process =====");
+      
+      // Call payment validation API
       const validationResponse = await fetch('/api/payment/validate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -110,7 +152,8 @@ export default function PurchaseClient({
         throw new Error(validationData.error || 'Payment validation failed');
       }
 
-      // create order
+      // Create order
+      console.log("Creating order...");
       const response = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -120,7 +163,9 @@ export default function PurchaseClient({
           quantity,
           totalAmount: totalPrice,
           reservationId,
-          ...(discountCode && { discountCode })
+          ...(discountCode && { discountCode }),
+          ...(discountCodeId && { discountCodeId }),
+          ...(discountReservationId && { discountReservationId }),
         }),
       });
 
@@ -129,26 +174,32 @@ export default function PurchaseClient({
       }
 
       const data = await response.json();
+      console.log(`Order created: ${data.orderId}`);
       
-      // mock payment processing delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // update order status to paid
+      // Process payment
+      console.log("Processing payment...");
       const payResponse = await fetch(`/api/orders/${data.orderId}/pay`, {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          cardLastFour: formData.cardNumber.slice(-4)
+        })
       });
 
       if (!payResponse.ok) {
         throw new Error('Payment failed');
       }
 
-      // redirect to order confirmation page
+      console.log("Payment successful, redirecting to confirmation page");
       router.push(`/orders/${data.orderId}/confirmation`);
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error during payment process:', error);
       alert(error instanceof Error ? error.message : 'An error occurred during processing');
     } finally {
       setIsProcessing(false);
+      console.log("===== Payment Process Completed =====");
     }
   };
 
@@ -160,7 +211,7 @@ export default function PurchaseClient({
         <div className="space-y-4 mb-8">
           <div>
             <h2 className="text-2xl font-semibold mb-2">{event.name}</h2>
-            <p className="text-lg text-gray-600">Ticket Tier: {selectedTier.id}</p>
+            <p className="text-lg text-gray-600">Ticket Tier: {selectedTier.name}</p>
           </div>
 
           <div className="border-t pt-4">

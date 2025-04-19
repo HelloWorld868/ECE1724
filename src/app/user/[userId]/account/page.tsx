@@ -73,7 +73,7 @@ export default function ManageAccountPage() {
       <div className="mb-8 space-y-3">
         <h2 className="text-lg font-semibold">Update Name</h2>
         <input
-          className="w-full px-4 py-2 border rounded"
+          className="w-full px-4 py-2 border rounded text-sm"
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
@@ -91,7 +91,7 @@ export default function ManageAccountPage() {
         placeholder="Input your email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        className="w-full px-4 py-2 border rounded-md"
+        className="w-full px-4 py-2 border rounded-md text-sm"
       />
 
         <Button

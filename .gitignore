@@ -22,3 +22,5 @@ yarn-error.log*
 Thumbs.db
 package-lock.json
 .idea
+gcs-key.json
+dist/

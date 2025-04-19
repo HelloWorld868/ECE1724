@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 
 // Type for component props
 interface TicketSectionProps {
-  tickets: TicketTier[];
+  tickets: any[];
   eventId: string;
 }
 
@@ -23,6 +23,11 @@ export default function TicketSection({ tickets, eventId }: TicketSectionProps) 
     value: number;
     valid: boolean;
     message: string;
+    discountCodeId?: number;
+    discountReservationId?: number;
+    reservationExpiry?: Date;
+    reservationId?: number;
+    expiresAt?: Date;
   } | null>(null);
   const [isValidating, setIsValidating] = useState(false);
 
@@ -35,7 +40,7 @@ export default function TicketSection({ tickets, eventId }: TicketSectionProps) 
   };
 
   // Handle discount code validation
-  const validateDiscountCode = async () => {
+  const validateDiscountCode = async (ticketReservationId?: number) => {
     if (!discountCode.trim()) return;
     
     setIsValidating(true);
@@ -43,7 +48,8 @@ export default function TicketSection({ tickets, eventId }: TicketSectionProps) 
       console.log("Validating discount code:", {
         code: discountCode,
         eventId: eventId,
-        eventIdType: typeof eventId
+        eventIdType: typeof eventId,
+        ticketReservationId
       });
 
       const response = await fetch(`/api/discount/validate`, {
@@ -53,7 +59,7 @@ export default function TicketSection({ tickets, eventId }: TicketSectionProps) 
         },
         body: JSON.stringify({
           code: discountCode,
-          eventId: parseInt(eventId),
+          eventId: parseInt(eventId)
         }),
       });
 
@@ -61,11 +67,28 @@ export default function TicketSection({ tickets, eventId }: TicketSectionProps) 
       console.log("Validation response:", data);
       
       if (response.ok) {
+        console.log("Discount code validation successful, full response data:", data);
+        
+        // Check required fields
+        if (!data.discountReservationId) {
+          console.warn("Warning: API response is missing discountReservationId field!");
+        } else {
+          console.log("Found discount reservation ID:", data.discountReservationId);
+        }
+        
         setDiscountInfo({
           type: data.discountType,
           value: data.discountValue,
           valid: true,
           message: "Discount code is valid!",
+          discountCodeId: data.discountCodeId,
+          discountReservationId: data.discountReservationId,
+          expiresAt: data.expiresAt ? new Date(data.expiresAt) : undefined
+        });
+        
+        console.log("Discount info set:", {
+          discountCodeId: data.discountCodeId,
+          discountReservationId: data.discountReservationId
         });
       } else {
         setDiscountInfo({
@@ -76,6 +99,7 @@ export default function TicketSection({ tickets, eventId }: TicketSectionProps) 
         });
       }
     } catch (error) {
+      console.error("Error validating discount code:", error);
       setDiscountInfo({
         type: "",
         value: 0,
@@ -106,7 +130,65 @@ export default function TicketSection({ tickets, eventId }: TicketSectionProps) 
   const handlePurchase = async () => {
     if (selectedTicket) {
       try {
-        // Create ticket reservation first
+        // if there is a discount code, validate it
+        let validDiscount = true;
+        let discountReservationId;
+        let reservationExpiry;
+        
+        console.log("Purchase started, current discount info:", discountInfo);
+        
+        if (discountInfo?.valid && discountInfo.discountCodeId) {
+          // Check if reservation ID already exists, prioritize discountReservationId
+          if (discountInfo.discountReservationId) {
+            console.log("Getting reservation ID from discount info:", discountInfo.discountReservationId);
+            discountReservationId = discountInfo.discountReservationId;
+            reservationExpiry = discountInfo.expiresAt;
+          } else if (discountInfo.reservationId) {
+            // Backward compatibility, in case of using old API
+            console.log("Getting reservation ID from discountInfo.reservationId:", discountInfo.reservationId);
+            discountReservationId = discountInfo.reservationId;
+            reservationExpiry = discountInfo.expiresAt;
+          }
+          
+          try {
+            // Check if discount code reservation is still valid
+            const checkResponse = await fetch(`/api/discount/check`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                discountCodeId: discountInfo.discountCodeId
+              }),
+            });
+            
+            if (!checkResponse.ok) {
+              const errorData = await checkResponse.json();
+              console.error("Discount code check failed:", errorData);
+              alert(`Your discount code is no longer valid: ${errorData.error}`);
+              setDiscountInfo(null);
+              validDiscount = false;
+              // ask user if they want to continue
+              if (!confirm("Would you like to continue without the discount code?")) {
+                return; // user chose to cancel
+              }
+            } else {
+              const checkData = await checkResponse.json();
+              discountReservationId = checkData.discountReservationId;
+              reservationExpiry = checkData.reservationExpiry ? new Date(checkData.reservationExpiry) : undefined;
+              console.log("Discount code check successful:", checkData);
+            }
+          } catch (error) {
+            console.error("Error checking discount code:", error);
+            if (!confirm("There was an error checking your discount code. Continue without discount?")) {
+              return; // user chose to cancel
+            }
+            validDiscount = false;
+            setDiscountInfo(null);
+          }
+        }
+
+        // create ticket reservation
         const reservationResponse = await fetch("/api/tickets/reserve", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -122,19 +204,81 @@ export default function TicketSection({ tickets, eventId }: TicketSectionProps) 
 
         const { reservationId } = await reservationResponse.json();
         
-        // Add reservationId to URL params
-        const params = new URLSearchParams({
+        // If discount code is valid, link it with the ticket reservation
+        if (validDiscount && discountInfo?.valid && discountInfo.discountCodeId && discountReservationId) {
+          try {
+            // Link discount reservation to ticket reservation
+            const linkResponse = await fetch("/api/discount/reserve", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                discountReservationId: discountReservationId,
+                ticketReservationId: reservationId
+              }),
+            });
+            
+            if (!linkResponse.ok) {
+              const errorData = await linkResponse.json();
+              console.error("Failed to link discount with ticket reservation:", errorData);
+              
+              // If linking fails, continue but without discount
+              alert(`Could not apply discount code: ${errorData.error}`);
+              setDiscountInfo(null);
+              discountReservationId = undefined;
+            }
+          } catch (error) {
+            console.error("Error linking discount with ticket reservation:", error);
+          }
+        }
+        
+        // Build URL parameters for purchase page
+        console.log("Building URL parameters, current values:", {
+          discountCodeId: discountInfo?.discountCodeId,
+          discountReservationId,
+          validDiscount,
+          discountInfoValid: discountInfo?.valid
+        });
+        
+        // Create base parameters object
+        let paramsObj: Record<string, string> = {
           tierId: selectedTicket.id.toString(),
           quantity: quantity.toString(),
           reservationId: reservationId.toString(),
-          ...(discountInfo?.valid && { 
-            discountCode,
-            discountType: discountInfo.type,
-            discountValue: discountInfo.value.toString()
-          }),
-        });
+        };
         
-        router.push(`/events/${eventId}/purchase?${params.toString()}`);
+        // If there is a valid discount code, add discount-related parameters
+        if (validDiscount && discountInfo?.valid) {
+          paramsObj.discountCode = discountCode;
+          paramsObj.discountType = discountInfo.type;
+          paramsObj.discountValue = discountInfo.value.toString();
+          
+          if (discountInfo.discountCodeId) {
+            paramsObj.discountCodeId = discountInfo.discountCodeId.toString();
+          }
+          
+          // Prioritize discountReservationId from check API
+          if (discountReservationId) {
+            console.log("Using check API's discount reservation ID:", discountReservationId);
+            paramsObj.discountReservationId = discountReservationId.toString();
+          }
+          // Otherwise use the one saved in discountInfo
+          else if (discountInfo.discountReservationId) {
+            console.log("Using validate API's discount reservation ID:", discountInfo.discountReservationId);
+            paramsObj.discountReservationId = discountInfo.discountReservationId.toString();
+          }
+          else {
+            console.warn("Warning: No discount reservation ID found, cannot add to URL parameters");
+          }
+        }
+        
+        const params = new URLSearchParams(paramsObj);
+        
+        const finalUrl = `/events/${eventId}/purchase?${params.toString()}`;
+        console.log("Final URL:", finalUrl);
+        console.log("URL contains discountReservationId:", finalUrl.includes("discountReservationId"));
+        
+        // Redirect to purchase page
+        router.push(finalUrl);
       } catch (error) {
         console.error('Error reserving tickets:', error);
         alert('Failed to reserve tickets. Please try again.');
@@ -179,7 +323,7 @@ export default function TicketSection({ tickets, eventId }: TicketSectionProps) 
               className="text-lg flex-1 p-2 border rounded-md"
             />
             <Button
-              onClick={validateDiscountCode}
+              onClick={() => validateDiscountCode(selectedTicket?.id)}
               disabled={!discountCode.trim() || isValidating}
             >
               {isValidating ? "Validating..." : "Validate"}

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import EventList from "@/components/EventList";
 import SignOutButton from "@/components/auth/SignOutButton";
+import PurchasedEventList from "@/components/PurchasedEventList";
 
 export default async function MyEventsPage({
   params,
@@ -30,8 +31,26 @@ export default async function MyEventsPage({
     orderBy: { startTime: "asc" },
   });
 
+  // Fetch user's purchased tickets/orders
+  const userOrders = await prisma.order.findMany({
+    where: { userId: user.id },
+    include: {
+      event: true,
+      ticketTier: true,
+    },
+    orderBy: { createdAt: 'desc' },
+  });
   
-  const boughtEvents: typeof createdEvents = [];
+  // Get unique events from orders
+  const boughtEventIds = [...new Set(userOrders.map(order => order.eventId))];
+  
+  // Fetch details of bought events
+  const boughtEvents = await prisma.event.findMany({
+    where: { 
+      id: { in: boughtEventIds } 
+    },
+    orderBy: { startTime: "asc" },
+  });
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100">
@@ -90,15 +109,15 @@ export default async function MyEventsPage({
             {/* Events I Bought */}
             <section className="mb-12">
             <h2 className="text-2xl font-semibold">Events I Bought</h2>
-            <div className="flex space-x-4 mb-6">
-                <Link href="">
-                <Button variant="default" size="sm">Manage My Tickets</Button>
-                </Link>
-            </div>
+
             {boughtEvents.length === 0 ? (
                 <p className="text-sm">You haven't bought tickets to any events.</p>
             ) : (
-                <EventList events={boughtEvents} />
+                <PurchasedEventList 
+                  events={boughtEvents} 
+                  orders={userOrders} 
+                  userId={user.id}
+                />
             )}
             </section>
             
