@@ -47,18 +47,18 @@ export default function RefundForm({ orderId, userId, eventId }: RefundFormProps
             const cardLastFour = transactionData.transaction?.cardLastFour;
             
             if (cardLastFour) {
-              alert(`Refund successful! The amount has been refunded to the credit card ending in ${cardLastFour}. Please allow 3-5 business days for the refund to process.`);
+              alert(`Refund successful! The amount has been refunded to the credit card ending in ${cardLastFour}.`);
             } else {
-              alert('Your refund request has been processed successfully. Please allow 3-5 business days for the refund to process.');
+              alert('Your refund request has been processed successfully.');
             }
           } else {
-            alert('Your refund request has been processed successfully. Please allow 3-5 business days for the refund to process.');
+            alert('Your refund request has been processed successfully.');
           }
         } catch (err) {
-          alert('Your refund request has been processed successfully. Please allow 3-5 business days for the refund to process.');
+          alert('Your refund request has been processed successfully.');
         }
       } else {
-        alert('Your refund request has been processed successfully. Please allow 3-5 business days for the refund to process.');
+        alert('Your refund request has been processed successfully.');
       }
 
       // Redirect back to tickets page after success
@@ -71,23 +71,25 @@ export default function RefundForm({ orderId, userId, eventId }: RefundFormProps
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-6">
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded">
+        <div className="bg-red-50 border border-red-200 text-red-700 p-6 rounded-lg text-lg">
           {error}
         </div>
       )}
-      <div className="flex justify-between pt-4">
+      <div className="flex justify-between pt-6">
         <Button 
           type="button" 
           variant="outline"
           onClick={() => router.push(`/user/${userId}/events/${eventId}`)}
+          className="text-lg py-3 px-8"
         >
-          Return to My Tickets
+          Cancel
         </Button>
         <Button
           type="submit"
-          className="bg-blue-600 hover:bg-blue-700 text-white"
+          variant="destructive"
+          className="bg-red-600 hover:bg-red-700 text-white text-lg py-3 px-8"
           disabled={isSubmitting}
         >
           {isSubmitting ? 'Processing...' : 'Confirm Refund'}

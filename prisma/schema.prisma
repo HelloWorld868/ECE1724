@@ -81,7 +81,7 @@ model Event {
   location      String
   startTime     DateTime
   endTime       DateTime
-  images        String[]
+  images        String[]        @default([])
   ownerid       String
   Registration  Registration[]
   TicketTiers   TicketTier[]

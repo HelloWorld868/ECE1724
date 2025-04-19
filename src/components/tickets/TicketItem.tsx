@@ -1,97 +1,72 @@
 'use client';
 
-import {useEffect, useState} from "react";
-import {TicketTier} from '@prisma/client';
-import {api} from '@/lib/api';
-import {toast} from 'sonner';
+import React from "react";
+import { TicketTier } from "@prisma/client";
+import { Button } from "@/components/ui/button";
 
-interface TicketWithName extends Omit<TicketTier, 'name'> {
-  name?: string;
-}
-
-// Props for the ticket card
 interface TicketItemProps {
-  ticket: TicketWithName;
-  isSelected: boolean;
-  onSelect: (ticket: TicketWithName) => void;
-  onJoinWaitlist: (ticket: TicketWithName) => void;
+  ticket: TicketTier & { quantity: number; description?: string };
+  selected: boolean;
+  onSelect: (ticket: TicketTier) => void;
+  soldOut: boolean;
+  onJoinWaitlist?: (ticket: TicketTier) => void;
 }
 
-export default function TicketItem({
-                                       ticket,
-                                       isSelected,
-                                       onSelect,
-                                   }: TicketItemProps) {
-    const [loading, setLoading] = useState(false);
-    const [joined, setJoined] = useState(false);
+export default function TicketItem({ 
+  ticket, 
+  selected, 
+  onSelect, 
+  soldOut, 
+  onJoinWaitlist 
+}: TicketItemProps) {
+  return (
+    <div
+      className={`relative bg-gray-900 text-white rounded-lg shadow-md overflow-hidden min-h-[8rem] sm:min-h-[10rem] md:min-h-[14rem] cursor-pointer transition-all ${
+        selected ? "ring-2 sm:ring-4 ring-blue-500 scale-[1.02]" : "hover:shadow-lg"
+      }`}
+      onClick={() => !soldOut && onSelect(ticket)}
+    >
+      {/* Overlay with gradient */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black/30 to-black/60" />
 
-    const isSoldOut = ticket.quantity === 0;
-
-    // On mount, check if user already joined waitlist
-    useEffect(() => {
-        if (isSoldOut) {
-            fetch(`/api/waitlist/check?tierId=${ticket.id}`)
-                .then((res) => res.json())
-                .then((data) => setJoined(data.joined))
-                .catch(() => setJoined(false));
-        }
-    }, [ticket.id, isSoldOut]);
-
-    const handleClick = async () => {
-        if (loading || joined) return;
-
-        if (!isSoldOut) {
-            onSelect?.(ticket);
-            return;
-        }
-
-        // Sold out → Try join waitlist
-        setLoading(true);
-        try {
-            await api('/api/waitlist/join', 'POST', {
-                tierId: ticket.id,
-                quantity: 1,
-            });
-
-            toast.success("Successfully joined the waitlist. Please check your email.");
-            setJoined(true);
-        } catch (err: any) {
-            toast.error(err.message ?? 'Failed to join the waitlist.');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    return (
-        <div
-            onClick={handleClick}
-            className={`cursor-pointer flex items-center justify-between p-4 border rounded-lg transition-colors ${
-                isSelected ? 'bg-blue-50 border-blue-500' : 'hover:bg-gray-50'
-            } ${joined ? 'opacity-60 cursor-not-allowed' : ''}`}
-        >
-            <div>
-                <h3 className="text-2xl font-medium">{ticket.name || `Tier ${ticket.id}`}</h3>
-                <p className="text-2xl text-gray-600">
-                    {isSoldOut ? (
-                        <span className="text-red-500">Sold Out</span>
-                    ) : (
-                        `Available: ${ticket.quantity}`
-                    )}
-                </p>
-            </div>
-
-            <div className="text-right">
-                <p className="text-lg font-bold">${ticket.price}</p>
-                {isSoldOut && (
-                    <p className="text-sm text-blue-600">
-                        {joined
-                            ? "Already on waitlist"
-                            : loading
-                                ? "Joining..."
-                                : "Click to join waitlist"}
-                    </p>
-                )}
-            </div>
+      {/* Content */}
+      <div className="relative z-10 p-3 sm:p-4 md:p-5 flex flex-col h-full">
+        <div className="flex-1">
+          <div className="flex justify-between items-start mb-2 sm:mb-3">
+            <h3 className="text-lg sm:text-xl md:text-2xl font-bold">{ticket.name}</h3>
+            <span className="text-lg sm:text-xl md:text-2xl font-bold">${ticket.price.toFixed(2)}</span>
+          </div>
+          
+          <div className="mt-2 sm:mt-3">
+            <p className="text-sm sm:text-base md:text-lg">
+              <span className="text-gray-300">Available:</span>{" "}
+              <span className={`font-medium ${ticket.quantity <= 5 ? "text-yellow-300" : "text-white"}`}>
+                {soldOut ? "Sold Out" : ticket.quantity}
+              </span>
+            </p>
+          </div>
         </div>
-    );
+
+        {/* Status indicator */}
+        {soldOut ? (
+          <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center">
+            <span className="bg-red-500 text-white px-3 py-1 sm:px-4 sm:py-1 rounded-full text-base sm:text-lg font-bold mb-3 sm:mb-4">
+              SOLD OUT
+            </span>
+            {onJoinWaitlist && (
+              <Button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onJoinWaitlist(ticket);
+                }}
+                className="bg-blue-600 hover:bg-blue-700 mt-1 sm:mt-2 text-sm sm:text-base md:text-lg px-3 py-1 sm:px-4 sm:py-2"
+              >
+                Join Waitlist
+              </Button>
+            )}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
 }

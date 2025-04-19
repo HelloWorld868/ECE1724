@@ -108,7 +108,7 @@ export default async function MyEventsPage({
     
             {/* Events I Bought */}
             <section className="mb-12">
-            <h2 className="text-2xl font-semibold">Events I Bought</h2>
+            <h2 className="text-2xl font-semibold mb-8">Events I Bought</h2>
 
             {boughtEvents.length === 0 ? (
                 <p className="text-sm">You haven't bought tickets to any events.</p>

@@ -63,13 +63,13 @@ export default async function EventTicketsPage({
   });
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
+    <div className=" w-screen max-w-5xl mx-auto p-6">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-4xl font-bold">{event.name}</h1>
+        <h1 className="text-lg sm:text-2xl md:text-4xl font-bold truncate font-bold">{event.name}</h1>
         <div className="flex gap-2">
           {user && (
             <Link href={`/user/${userId}`}>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" className="text-xs sm:text-sm mid:text-sm whitespace-nowrap">
               ← Back to Events
               </Button>
             </Link>
@@ -82,6 +82,7 @@ export default async function EventTicketsPage({
       
       {/* Ticket section component (client component) */}
       <TicketSection tickets={ticketsWithAvailability} eventId={eventId} />
+
     </div>
   );
 }

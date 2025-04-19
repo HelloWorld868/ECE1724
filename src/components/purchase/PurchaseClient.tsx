@@ -206,24 +206,24 @@ export default function PurchaseClient({
   return (
     <div className="max-w-6xl mx-auto p-6">
       <div className="bg-white rounded-lg shadow-md p-8">
-        <h1 className="text-4xl font-bold mb-8">Purchase Tickets</h1>
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-8">Purchase Tickets</h1>
         
         <div className="space-y-4 mb-8">
           <div>
-            <h2 className="text-2xl font-semibold mb-2">{event.name}</h2>
-            <p className="text-lg text-gray-600">Ticket Tier: {selectedTier.name}</p>
+            <h2 className="text-xl sm:text-xl md:text-2xl font-semibold mb-2">{event.name}</h2>
+            <p className="text-base sm:text-lg text-gray-600">Ticket Tier: {selectedTier.name}</p>
           </div>
 
           <div className="border-t pt-4">
-            <h3 className="text-2xl font-semibold mb-2">Price Details</h3>
+            <h3 className="text-xl sm:text-xl md:text-2xl font-semibold mb-2">Price Details</h3>
             <div className="space-y-2">
-              <div className="text-lg flex justify-between">
+              <div className="text-base sm:text-lg flex justify-between">
                 <span>Base Price ({quantity} tickets)</span>
                 <span>${basePrice.toFixed(2)}</span>
               </div>
               
               {discountCode && discountValue && (
-                <div className="text-lg flex justify-between text-green-600">
+                <div className="text-base sm:text-lg flex justify-between text-green-600">
                   <span>Discount ({discountCode})</span>
                   <span>
                     -{discountType === 'PERCENTAGE' 
@@ -233,7 +233,7 @@ export default function PurchaseClient({
                 </div>
               )}
 
-              <div className="text-2xl flex justify-between font-bold border-t pt-2">
+              <div className="text-xl sm:text-xl md:text-2xl flex justify-between font-bold border-t pt-2">
                 <span>Total</span>
                 <span>${totalPrice.toFixed(2)}</span>
               </div>
@@ -243,7 +243,7 @@ export default function PurchaseClient({
 
         {!user ? (
           <div className="text-center">
-            <p className="text-lg text-gray-600 mb-4">Please sign in to purchase tickets</p>
+            <p className="text-base sm:text-lg text-gray-600 mb-4">Please sign in to purchase tickets</p>
             <Button
               onClick={() => router.push("/signin")}
               className="px-8"
@@ -253,15 +253,15 @@ export default function PurchaseClient({
           </div>
         ) : (
           <div>
-            <h3 className="text-2xl font-semibold mb-4">Payment Information</h3>
+            <h3 className="text-xl sm:text-xl md:text-2xl font-semibold mb-4">Payment Information</h3>
             <form onSubmit={handlePayment} className="space-y-6">
               <div>
-                <label className="text-lg block font-medium mb-1">Cardholder Name</label>
+                <label className="text-base sm:text-lg block font-medium mb-1">Cardholder Name</label>
                 <input
                   type="text"
                   name="cardholderName"
                   required
-                  className={`w-full p-2 border rounded-md text-lg ${
+                  className={`w-full p-2 border rounded-md text-base sm:text-lg ${
                     formErrors.cardholderName ? 'border-red-500' : ''
                   }`}
                   placeholder="Enter cardholder name"
@@ -272,13 +272,13 @@ export default function PurchaseClient({
               </div>
 
               <div>
-                <label className="block text-lg font-medium mb-1">Card Number</label>
+                <label className="block text-base sm:text-lg font-medium mb-1">Card Number</label>
                 <input
                   type="text"
                   name="cardNumber"
                   required
                   maxLength={16}
-                  className={`w-full p-2 border rounded-md text-lg ${
+                  className={`w-full p-2 border rounded-md text-base sm:text-lg ${
                     formErrors.cardNumber ? 'border-red-500' : ''
                   }`}
                   placeholder="Enter 16-digit card number"
@@ -290,13 +290,13 @@ export default function PurchaseClient({
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-lg font-medium mb-1">Expiry Date</label>
+                  <label className="block text-base sm:text-lg font-medium mb-1">Expiry Date</label>
                   <input
                     type="text"
                     name="expiryDate"
                     required
                     placeholder="MM/YY"
-                    className={`w-full p-2 border rounded-md text-lg ${
+                    className={`w-full p-2 border rounded-md text-base sm:text-lg ${
                       formErrors.expiryDate ? 'border-red-500' : ''
                     }`}
                   />
@@ -305,13 +305,13 @@ export default function PurchaseClient({
                   )}
                 </div>
                 <div>
-                  <label className="block text-lg font-medium mb-1">CVV</label>
+                  <label className="block text-base sm:text-lg font-medium mb-1">CVV</label>
                   <input
                     type="text"
                     name="cvv"
                     required
                     maxLength={4}
-                    className={`w-full p-2 border rounded-md text-lg ${
+                    className={`w-full p-2 border rounded-md text-base sm:text-lg ${
                       formErrors.cvv ? 'border-red-500' : ''
                     }`}
                     placeholder="CVV"
@@ -326,7 +326,7 @@ export default function PurchaseClient({
                 <Button
                   type="submit"
                   disabled={isProcessing}
-                  className="w-full"
+                  className="w-full text-base sm:text-lg"
                 >
                   {isProcessing ? 'Processing Payment...' : `Pay $${totalPrice.toFixed(2)}`}
                 </Button>
@@ -336,7 +336,7 @@ export default function PurchaseClient({
                   variant="outline"
                   onClick={handleCancel}
                   disabled={isCancelling || isProcessing}
-                  className="w-full"
+                  className="w-full text-base sm:text-lg"
                 >
                   {isCancelling ? 'Cancelling...' : 'Cancel Purchase'}
                 </Button>

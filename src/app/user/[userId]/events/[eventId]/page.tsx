@@ -56,32 +56,31 @@ export default async function UserEventTicketsPage({
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100">
-      <header className="w-screen bg-neutral-100 dark:bg-neutral-900 py-6 shadow-md">
-        <div className="flex justify-between items-center px-10">
-          <h1 className="text-3xl font-bold">My Tickets</h1>
-          <Link
-            href={`/user/${userId}/myevents`}
-            className="text-base font-medium text-blue-600 hover:underline dark:text-blue-400"
-          >
-            Back to My Events
+      <header className="w-screen bg-neutral-100 dark:bg-neutral-900 py-4 sm:py-6 shadow-md">
+        <div className="flex justify-between items-center px-4 sm:px-10">
+          <h1 className="text-xl sm:text-3xl font-bold">My Tickets</h1>
+          <Link href={`/user/${userId}/myevents`}>
+            <Button variant="outline" className="text-sm px-4 sm:px-6 py-2">
+              My Events
+            </Button>
           </Link>
         </div>
       </header>
-
-      <main className="max-w-6xl mx-auto px-6 py-10">
-        <div className="bg-blue-50 dark:bg-blue-900 p-6 rounded-lg mb-8">
-          <h1 className="text-3xl font-bold mb-2">{event.name}</h1>
-          <p className="text-lg">
+  
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
+        <div className="bg-blue-50 dark:bg-blue-900 p-4 sm:p-6 rounded-lg mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold mb-2">{event.name}</h1>
+          <p className="text-base sm:text-lg">
             {format(new Date(event.startTime), "MMMM d, yyyy 'at' h:mm a")}
           </p>
-          <p className="text-lg">{event.location}</p>
+          <p className="text-base sm:text-lg">{event.location}</p>
         </div>
-
-        <h2 className="text-2xl font-bold mb-6">Your Tickets</h2>
-
+  
+        <h2 className="text-xl sm:text-2xl font-bold mb-6">Your Tickets</h2>
+  
         {orders.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-xl mb-6">You don't have any tickets for this event yet.</p>
+            <p className="text-lg sm:text-xl mb-6">You don't have any tickets for this event yet.</p>
             <Link href={`/events/${event.id}/tickets`}>
               <Button>Get Tickets</Button>
             </Link>
@@ -93,14 +92,14 @@ export default async function UserEventTicketsPage({
                 key={order.id}
                 className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden"
               >
-                <div className="bg-blue-50 dark:bg-blue-900 px-6 py-4 flex justify-between items-center">
+                <div className="bg-blue-50 dark:bg-blue-900 px-4 sm:px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-2 sm:space-y-0">
                   <div>
-                    <h3 className="text-lg font-semibold">Order #{order.id}</h3>
+                    <h3 className="text-xl sm:text-2xl font-semibold">Order #{order.id}</h3>
                     <p className="text-sm text-gray-600 dark:text-gray-300">
                       Purchased on {format(new Date(order.createdAt), "PPP")}
                     </p>
                   </div>
-                  <div className="text-right">
+                  <div className="text-left sm:text-right">
                     <span
                       className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(
                         order.status
@@ -110,40 +109,37 @@ export default async function UserEventTicketsPage({
                     </span>
                   </div>
                 </div>
-
-                <div className="p-6 space-y-4">
-                  <div className="flex justify-between">
+  
+                <div className="p-4 sm:p-6 space-y-4">
+                  <div className="flex flex-col sm:flex-row justify-between">
                     <div>
-                      <p>
-                        <span className="font-medium">Ticket Type:</span>{" "}
-                        {order.ticketTier.name} 
+                      <p className="font-medium text-base sm:text-lg">
+                        Ticket Type: <span className="font-normal">{order.ticketTier.name}</span>
                       </p>
-                      <p>
-                        <span className="font-medium">Quantity:</span>{" "}
-                        {order.quantity}
+                      <p className="font-medium text-base sm:text-lg">
+                        Quantity: <span className="font-normal">{order.quantity}</span>
                       </p>
-                      <p>
-                        <span className="font-medium">Total Amount:</span>{" "}
-                        ${order.totalAmount.toFixed(2)}
+                      <p className="font-medium text-base sm:text-lg">
+                        Total Amount: <span className="font-normal">${order.totalAmount.toFixed(2)}</span>
                       </p>
                     </div>
                   </div>
-
-                  <div className="flex space-x-8 pt-4 border-t justify-center">
+  
+                  <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-8 pt-4 border-t justify-center">
                     {order.status === "CONFIRMED" && (
                       <>
                         <Button
                           asChild
-                          className="bg-black hover:bg-gray-800 text-white w-40"
+                          className="bg-black hover:bg-gray-800 text-white w-full sm:w-40"
                           size="sm"
                         >
                           <Link href={`/orders/${order.id}/qrcode`}>Show QR Code</Link>
                         </Button>
-
+  
                         <Button
                           asChild
                           variant="outline"
-                          className="w-40"
+                          className="w-full sm:w-40"
                           size="sm"
                         >
                           <Link href={`/orders/${order.id}/cancel`}>Cancel Order</Link>
@@ -159,6 +155,7 @@ export default async function UserEventTicketsPage({
       </main>
     </div>
   );
+  
 }
 
 function getStatusColor(status: string) {
